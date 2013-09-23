@@ -1,0 +1,83 @@
+<html>
+	<head>
+	<script src="jquery-1.9.1.min.js" type="text/javascript"></script>
+	<script type="text/javascript">
+	var audio;
+	var playlist;
+	var tracks;
+	var current;
+	// https://commons.wikimedia.org/w/api.php?action=query&titles=File:1.%20V%20iskani%20shchastya.ogg&prop=videoinfo&format=jsonfm&viprop=url
+	// rep -v 'Deletion_requests' commonswiki-latest-all-titles | grep '\.ogg$' > ../commons_ogg.txt
+	// based on http://blog.lastrose.com/html5-audio-video-playlist/
+	//https://commons.wikimedia.org/w/api.php?action=query&titles=File:1.%20V%20iskani%20shchastya.ogg&prop=videoinfo&format=jsonfm&viprop=url|mediatype|metadata
+	//https://commons.wikimedia.org/w/api.php?action=query&prop=globalusage&titles=File:Wikipedia%20Song%20by%20teddy.ogg&format=jsonfm
+	$(function init(){
+	    current = 0;
+	    audio = $('audio');
+	    playlist = $('#playlist');
+	    tracks = playlist.find('li a');
+	    len = tracks.length - 1;
+	    audio[0].volume = .10;
+	    playlist.find('a').click(function(e){
+	        e.preventDefault();
+	        link = $(this);
+	        current = link.parent().index();
+	        run(link, audio[0]);
+	    });
+	    audio[0].addEventListener('ended',function(e){
+	        current++;
+	        if(current == len){
+	            current = 0;
+	            link = playlist.find('a')[0];
+	        }else{
+	            link = playlist.find('a')[current];    
+	        }
+	        run($(link),audio[0]);
+	    });
+	});
+
+	function run(link, player){
+	        player.src = link.attr('href');
+	        par = link.parent();
+	        par.addClass('active').siblings().removeClass('active');
+	        audio[0].load();
+	        audio[0].play();
+	}
+	</script>
+	<style>
+	#playlist, audio{
+		background:#666;
+		width:400px;
+		padding:20px;
+	}
+
+	.active a{
+		color:#5DB0E6;
+		text-decoration:none;
+	}
+
+	li a{
+		color:#eeeedd;
+		background:#333;
+		padding:5px;
+		display:block;
+	}
+
+	li a:hover{
+		text-decoration:none;
+	}
+	</style>
+	</head>
+    <audio id="audio" preload="auto" tabindex="0" controls="" type="audio/ogg">
+        <source type="audio/ogg" src="https://upload.wikimedia.org/wikipedia/commons/e/e1/04_-_J%27y_suis_j%27y_reste.ogg">
+        Sorry, your browser does not support HTML5 audio.
+    </audio>
+    </head>
+    <body>
+    <ul id="playlist">
+        <li class="active"><a href="https://upload.wikimedia.org/wikipedia/commons/e/e1/04_-_J%27y_suis_j%27y_reste.ogg">Je suis</a></li>
+        <li><a href="https://upload.wikimedia.org/wikipedia/commons/3/38/1--Trombone_Nocturne--CCE328.ogg">Trombone</a></li>
+        <li><a href="https://upload.wikimedia.org/wikipedia/commons/4/40/1._V_iskani_shchastya.ogg">iskani</a></li>
+    </ul>
+    </body>
+    </html>
