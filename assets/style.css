@@ -1,0 +1,25 @@
+body {
+	font-family: sans-serif;
+	padding: 4em;
+}
+h1 {
+	margin: 1em 0;
+}
+audio {
+	display: none;
+}
+
+.bar, .progress {
+	height: 10px !important;
+}
+.no-animate {
+	-webkit-transition: none !important;
+ 	-moz-transition: none !important;
+ 	-ms-transition: none !important;
+ 	-o-transition: none !important;
+ 	transition: none !important;
+}
+
+#cp-more ul {
+	list-style-type: none;
+}

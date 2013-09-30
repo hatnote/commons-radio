@@ -1,83 +1,342 @@
 <html>
 	<head>
-	<script src="jquery-1.9.1.min.js" type="text/javascript"></script>
+		<title>Wiki Commons Radio</title>
+	<script src="jquery-1.10.2.js" type="text/javascript"></script>
+	<script src="assets/semantic.min.js" type="text/javascript"></script>
 	<script type="text/javascript">
-	var audio;
-	var playlist;
-	var tracks;
-	var current;
+
 	// https://commons.wikimedia.org/w/api.php?action=query&titles=File:1.%20V%20iskani%20shchastya.ogg&prop=videoinfo&format=jsonfm&viprop=url
 	// rep -v 'Deletion_requests' commonswiki-latest-all-titles | grep '\.ogg$' > ../commons_ogg.txt
 	// based on http://blog.lastrose.com/html5-audio-video-playlist/
-	//https://commons.wikimedia.org/w/api.php?action=query&titles=File:1.%20V%20iskani%20shchastya.ogg&prop=videoinfo&format=jsonfm&viprop=url|mediatype|metadata
+	// https://commons.wikimedia.org/w/api.php?action=query&titles=File:1.%20V%20iskani%20shchastya.ogg&prop=videoinfo&format=jsonfm&viprop=url|mediatype|metadata
 	//https://commons.wikimedia.org/w/api.php?action=query&prop=globalusage&titles=File:Wikipedia%20Song%20by%20teddy.ogg&format=jsonfm
+	
+	var NOW_PLAYING = 0;
+	
+	var DEBUG = true;
+	var RadioC = new Audio();
+	var Playlist = [];
+	var analyser;
+	var source_node;
+
+	// check if there is AudioContext support
+	var context;
+	if (typeof AudioContext !== "undefined") {
+	    context = new AudioContext();
+	} else if (typeof webkitAudioContext !== "undefined") {
+	    context = new webkitAudioContext();
+	} else {
+		console.log('Audio visualization is not possible in your current browser...');
+	    context = false;
+	}
+
+	var setup_audio_nodes = function() {
+		source_node =  (source_node || context.createMediaElementSource(RadioC));
+		analyser = (analyser || context.createAnalyser());
+
+		analyser.smoothingTimeConstant = 0.90;
+		analyser.fftSize = 512;
+		source_node.connect(analyser);
+		source_node.connect(context.destination);
+		draw_spectrum();
+	}
+
+    var draw_spectrum = function() {
+    	var canvas = $('#songcanvas')[0]
+		var ctx = canvas.getContext("2d");
+		var w = canvas.width
+		var h= canvas.height
+		var analyser_array =  new Uint8Array(analyser.frequencyBinCount);
+		analyser.getByteFrequencyData(analyser_array);
+		ctx.clearRect(0, 0, w, h);
+		var audio_animation = requestAnimationFrame(draw_spectrum);
+		for (var i = 0; i < (analyser_array.length); i++ ){
+			var analyser_value = analyser_array[i];
+			ctx.fillRect(i*4, h - (analyser_value / 3), 2, h * 3);
+		}
+	}
+
 	$(function init(){
-	    current = 0;
-	    audio = $('audio');
-	    playlist = $('#playlist');
-	    tracks = playlist.find('li a');
-	    len = tracks.length - 1;
-	    audio[0].volume = .10;
-	    playlist.find('a').click(function(e){
-	        e.preventDefault();
-	        link = $(this);
-	        current = link.parent().index();
-	        run(link, audio[0]);
-	    });
-	    audio[0].addEventListener('ended',function(e){
-	        current++;
-	        if(current == len){
-	            current = 0;
-	            link = playlist.find('a')[0];
-	        }else{
-	            link = playlist.find('a')[current];    
-	        }
-	        run($(link),audio[0]);
-	    });
+		$.getJSON('http://localhost:5000/rand/5?callback=?', function(data, textStatus, jqXHR) {
+			get_file_props(data, function(tunes) {
+				append_new_tunes(tunes)
+			}, function() { play_tune(NOW_PLAYING) });
+		})
+
+		// radio events
+		$(RadioC).on({
+			'ended': function(e) {
+				check_next_tune();
+		    },
+	    	'timeupdate': function (){
+		    	//var elapsed = parseFloat(RadioC[0].duration - RadioC[0].currentTime, 10)
+		    	var pos = (RadioC.currentTime / RadioC.duration) * 100;
+		        $('#progress-bar').attr('style', 'width: ' + pos + '%;');
+		    },
+	    	'pause': function() {
+		    	$('#play-button').removeClass('active');
+		    	$('#pause-button').addClass('active');
+		    },
+	    	'play': function() {
+		    	$('#play-button').addClass('active');
+		    	$('#pause-button').removeClass('active');
+		    },
+		    'loadstart': function() {
+		    	$('#progress-bar').attr('style', 'width: 0%');
+		    	$('#radio-loader').fadeIn()
+		    },
+	    	'loadeddata': function() {
+		    	$('#radio-loader').fadeOut();
+		    	//vizualization
+				if (context) {
+					setup_audio_nodes();
+				}
+		    },
+		    'error': function() {
+		    	console.log('error!')
+		    },
+		    'stalled': function() {
+		    	console.log('stalled!')
+		    }
+		});
+
+	    // custom controls
+	    $('#play-button').click(function() {
+	    	$(RadioC)[0].play();
+	    })
+	    $('#pause-button').click(function() {
+	    	$(RadioC)[0].pause();
+	    })
+	    $('#next-button').click(function() {
+	    	check_next_tune();
+	    })
+	    $('#prev-button').click(function() {
+	    	play_tune(NOW_PLAYING - 1); // does it exist?
+	    })
+	    $('#load-button').click(function() {
+	    	fetch_more(append_new_tunes)
+	    })
+
+	    // vis stuff
+	    if (!context) {
+	    	$('#songcanvas').hide();
+	    }
+	    
 	});
 
-	function run(link, player){
-	        player.src = link.attr('href');
-	        par = link.parent();
-	        par.addClass('active').siblings().removeClass('active');
-	        audio[0].load();
-	        audio[0].play();
+ 	var prep_url = function(url, params) {
+        var params_string = ''
+        for (key in params) {
+            params_string += '&' + key + '=' + params[key];
+        }
+        return url + '?' + params_string;
+    };
+
+    var get_file_props = function(filenames, cb, final_cb) {
+    	var filestr = '';
+    	for (var i = 0; i < filenames.length; i++) {
+    		var file = filenames[i];
+    		if (!file.indexOf('File:') == 0) {
+    			file = 'File:' + file;
+    		}
+    		if (filestr) {
+    			filestr += '|' + file;
+    		} else {
+    			filestr = file;
+    		}
+    	}
+        var api_url = 'http://commons.wikipedia.org/w/api.php'
+        var params = {
+            'action': 'query',
+            'titles': filestr,
+            'prop': 'videoinfo|globalusage',
+            'viprop': 'url|mediatype|metadata',
+            'format': 'json',
+            'callback': '?'
+        }
+        var api_query_url = prep_url(api_url, params);
+        if(DEBUG) { console.log(api_query_url); }
+        
+        $.getJSON(api_query_url, function(data, textStatus, jqXHR) {
+            var ret_pages = data['query']['pages'];
+            var ret_urls = []
+            for (page_id in ret_pages) {
+                if (ret_pages.hasOwnProperty(page_id)) {
+                	var dur = 0;
+                	//no [0] item?
+                	$.map(ret_pages[page_id]['videoinfo'][0]['metadata'], function(r) {
+                		if (r['name'] == 'length') {
+                			dur = r['value'];
+                		}
+                	});
+                	
+                	ret_urls.push({
+                		'url': ret_pages[page_id]['videoinfo'][0]['url'],
+                		'title': ret_pages[page_id]['title'],
+                		'duration': dur,
+                		'pageid': ret_pages[page_id]['pageid'],
+                		'usage': ret_pages[page_id]['globalusage'],
+                	})
+                }
+            }
+            cb(ret_urls)
+            if (final_cb) {
+				final_cb();
+			}
+        });
+    };
+
+    var get_image_from_pg = function(title, wiki) {
+    	//http://en.wikipedia.org/w/api.php?action=query&generator=images&titles=Kieran%20Ault-Connell&prop=imageinfo&format=jsonfm&iiprop=url|size
+
+    	var api_url = 'http://' + wiki + '/w/api.php'
+        var params = {
+            'action': 'query',
+            'generator': 'images',
+            'titles': title,
+            'prop': 'imageinfo',
+            'iiprop': 'url|size|mime',
+            'format': 'json',
+            'callback': '?'
+        }
+        var api_query_url = prep_url(api_url, params);
+        $.getJSON(api_query_url, function(data, textStatus, jqXHR) {
+        	var ret_pages = data['query']['pages'];
+            for (page_id in ret_pages) {
+                if (ret_pages.hasOwnProperty(page_id)) {
+                	var cur_page = ret_pages[page_id];
+                	if (cur_page['imageinfo'][0]['mime'] == 'image/jpeg' && cur_page['imagerepository'] != 'local') {
+                		// TODO: generate thumb from local images
+                		var cur_url = cur_page['imageinfo'][0]['url']
+                		// 0_0
+                		var split_spot = cur_url.lastIndexOf('commons/')
+                		var first_half = cur_url.substring(0, split_spot);
+						var last_half = cur_url.substring(split_spot + 8);
+						var filename = cur_url.substring(cur_url.lastIndexOf('/') + 1);
+						var thumb_url = first_half + 'commons/thumb/' + last_half + '/200px-' + filename
+                		$('#cp-cover').html('<img src="' + thumb_url + '" class="ui rounded left floated image">')
+                		return;
+                	}
+                }
+            }
+        });
+    }
+
+    var play_tune = function(tune_id) {
+		NOW_PLAYING = tune_id
+		var tune_li = $('#playlist a:eq(' + tune_id + ')');
+		var url = tune_li.attr('href');
+		var title = $('#title', tune_li).text();
+		tune_li.addClass('active').siblings().removeClass('active');
+		$(RadioC).attr('src', url)
+		$(RadioC).load()
+		$(RadioC)[0].play()
+		
+		//adjust cp ui
+		$('#cp-cover').empty();
+		$('#cp-title').html('<a href="https://commons.wikimedia.org/wiki/' + title + '" target="_blank">' + title + '</a>')
+		var use_list = '';
+		if (Playlist[tune_id]['usage'].length > 0) {
+			$.map(Playlist[tune_id]['usage'], function(r) {
+				use_list += ' <li><a href="' + r['url'] + '" target="_new">' + r['title'] + '</a> (' + r['wiki'] + ')</li>'
+				if ($('#cp-cover').children().length == 0) {
+					// only get the first image
+					get_image_from_pg(r['title'], r['wiki']); 
+				}
+			})	
+			$('#cp-more').html('<h2>Used on</h2><ul>' + use_list + '</ul>');
+			
+		} else {
+			$('#cp-more').empty()
+		}
+		
 	}
+
+	var play_next_tune = function() {
+		return play_tune(NOW_PLAYING + 1);
+	}
+
+	var check_next_tune = function() {
+		if(NOW_PLAYING + 2 >= $('#playlist a').length) {
+			if (DEBUG) { console.log('fetching more'); }
+			fetch_more(append_new_tunes, play_next_tune);
+		} else {
+			if (DEBUG) { console.log('playing next'); }
+			play_next_tune()
+		}
+	}
+
+	var fetch_more = function(cb, final_cb) {
+		$.getJSON('http://localhost:5000/rand/5?callback=?', function(data, textStatus, jqXHR) {
+			get_file_props(data, function(tunes) {
+				cb(tunes);
+			}, final_cb);
+		})
+	}
+
+	var append_new_tunes = function(tunes) {
+		for(var i = 0; i < tunes.length; i++) {
+			Playlist.push(tunes[i])
+			var url = tunes[i]['url'];
+			var title = tunes[i]['title'];
+			var dur = tunes[i]['duration'];
+			$('#playlist').append('<a class="item" href="' + url + '"><span id="title">' + title + '</span><div class="ui label text small"><span id="duration">' + dur.toFixed(1) + ' seconds</span></div></a>')
+		}
+		$('#playlist').children().each(function() {
+			var li_index = $(this).index()
+	    	$(this).click(function(e) {
+	    		play_tune(li_index)
+	    		return false;
+	    	})
+		        
+	    });
+	}
+
 	</script>
 	<style>
-	#playlist, audio{
-		background:#666;
-		width:400px;
-		padding:20px;
-	}
-
-	.active a{
-		color:#5DB0E6;
-		text-decoration:none;
-	}
-
-	li a{
-		color:#eeeedd;
-		background:#333;
-		padding:5px;
-		display:block;
-	}
-
-	li a:hover{
-		text-decoration:none;
-	}
+	
 	</style>
+	<link rel="stylesheet" type="text/css" href="assets/style.css">
+	<link rel="stylesheet" type="text/css" href="assets/semantic.min.css">
 	</head>
-    <audio id="audio" preload="auto" tabindex="0" controls="" type="audio/ogg">
-        <source type="audio/ogg" src="https://upload.wikimedia.org/wikipedia/commons/e/e1/04_-_J%27y_suis_j%27y_reste.ogg">
-        Sorry, your browser does not support HTML5 audio.
-    </audio>
-    </head>
     <body>
-    <ul id="playlist">
-        <li class="active"><a href="https://upload.wikimedia.org/wikipedia/commons/e/e1/04_-_J%27y_suis_j%27y_reste.ogg">Je suis</a></li>
-        <li><a href="https://upload.wikimedia.org/wikipedia/commons/3/38/1--Trombone_Nocturne--CCE328.ogg">Trombone</a></li>
-        <li><a href="https://upload.wikimedia.org/wikipedia/commons/4/40/1._V_iskani_shchastya.ogg">iskani</a></li>
-    </ul>
+    	<div class="ui vertical segment">
+    	<h1 class="ui header">Sounds from the Commons!</h1>
+    	</div>
+    	<p>Free freely licensed and public domain sounds from Wikimedia Commons.</p>
+	    
+		<canvas id="songcanvas" width="800" height="100"></canvas>
+		<div class="ui attached segment" id="radio-ui">
+			<div id="cp-cover"></div>
+			<div class="ui active inverted dimmer" id="radio-loader"></div>
+		  <p>Currently playing: <em><span id="cp-title"></span></em>.</p>
+		  <p id="cp-more"></p>
+		</div>
+		<div class="ui bottom green attached progress">
+		  <div class="no-animate bar" id="progress-bar"></div>
+		</div>
+		<div class="ui icon buttons attached bottom">
+			<div class="ui button" id="prev-button">
+		    <i class="step backward icon"></i>
+		    
+		  </div>
+		  <div class="ui button" id="pause-button">
+		    <i class="pause icon"></i>
+		    
+		  </div>
+		  <div class="ui button" id="play-button">
+		    <i class="play icon"></i>
+		    
+		  </div>
+		  <div class="ui button" id="next-button">
+		    
+		    <i class="step forward icon"></i>
+		  </div>
+		</div>
+    <div class="ui fluid vertical menu">
+    <div id="playlist"></div>
+    <div class="bottom attached ui button" id="load-button">Load more...
+    	<i class="arrow sign down icon"</div>
+    </div>
     </body>
     </html>
