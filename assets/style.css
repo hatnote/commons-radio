@@ -5,12 +5,17 @@ body {
 h1 {
 	margin: 1em 0;
 }
+
+h2 a {
+	text-decoration: none;
+	color: #000;
+}
 audio {
 	display: none;
 }
 
 .bar, .progress {
-	height: 10px !important;
+	height: 5px !important;
 }
 .no-animate {
 	-webkit-transition: none !important;
