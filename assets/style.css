@@ -1,6 +1,7 @@
 body {
 	font-family: sans-serif;
-	padding: 4em;
+	margin: 1em 4em;
+	<!-- background: #CfCfCf; -->
 }
 h1 {
 	margin: 1em 0;
@@ -15,14 +16,49 @@ audio {
 }
 
 .bar, .progress {
-	height: 5px !important;
+	height: 1em !important;
 }
+
+.item:hover {
+	cursor: hand;
+}
+
+.label {
+	color: #fff;
+	text-decoration: none;
+}
+
+#cat {
+	margin-top: 5px;
+}
+
+.label {
+	margin-top: 1em;
+}
+
+.sub.header a {
+	color: #ccc;
+	text-decoration: none;
+	font-weight: normal;
+}
+.header a:hover {
+	border-bottom: 1px solid #6ECFF5;
+}
+
+#cp-title {
+	margin: 0;
+}
+
 .no-animate {
 	-webkit-transition: none !important;
  	-moz-transition: none !important;
  	-ms-transition: none !important;
  	-o-transition: none !important;
  	transition: none !important;
+}
+
+#progress-bar-container:hover {
+	cursor: hand; <!-- TODO: only if playing? -->
 }
 
 #cp-more ul {
