@@ -309,17 +309,34 @@
         var cat_list = '';
         console.log(Playlist[tune_id])
         if (Playlist[tune_id]['categories']) {
-            console.log('found cats')
-            console.log(Playlist[tune_id]['categories'])
+            $('#cp-cats').html(category_header)
+            $('#cp-cats').append(category_list)
             $.map(Playlist[tune_id]['categories'], function(r) {
                 var cur_color = random_color();
-                cat_list += '<a class="ui small ' + cur_color + ' label" id="cat" href="https://commons.wikimedia.org/wiki/Category:' + r['title'] + '" target="_new">' + r['title'].replace('Category:', '') + '</a>'
-            })
-            $('#cp-cats').html('<h3 class="ui header">Categories</h3>  <p>' + cat_list + '</p>')
+                $('#cat-list').append(make_category_element(r['title'], cur_color))
+            });
         } else {
             console.log('no cats')
             $('#cp-cats').empty();
         }
+    }
+    // TODO: move these templates
+    var category_link = $('<a class="ui small label cat" href="#" target="_new"></a>')
+    '<h3 class="ui header">Categories</h3>'
+    var category_list = $('<p id="cat-list"></p>')
+    var category_header = $('<h3 class="ui header">Categories</h3>')
+
+    var make_category_element = function(title, cur_color) {
+        if (title.indexOf('Category:') == 0) {
+            title = title.replace('Category:', '')
+        }
+        var ret = category_link.clone()
+        ret.attr('href', 'https://commons.wikimedia.org/wiki/Category:' + title)
+        if (cur_color) {
+            ret.addClass(cur_color)
+        }
+        ret.text(title)
+        return ret
     }
 
     var random_color = function() {
@@ -353,6 +370,17 @@
         })
     }
 
+    //TODO: move these templates
+    var playlist_element = $('<a class="item" href="#"><span class="ui label text small duration"></span></a>')
+
+    var make_playlist_element = function(filename, url, duration) {
+        var name = filename.replace('File:', '').replace('.ogg', '')
+        var ret = playlist_element.clone()
+        ret.attr('href', url).prepend(name)
+        ret.find('.duration').text(duration.toFixed(1) + ' seconds')
+        return ret
+    }
+
     var append_new_tunes = function(tunes) {
         for(var i = 0; i < tunes.length; i++) {
             Playlist.push(tunes[i])
@@ -360,7 +388,7 @@
             var title = tunes[i]['title'];
             var dur = tunes[i]['duration'];
             // TODO: template?
-            $('#playlist').append('<a class="item" href="' + url + '"><span id="title">' + title.replace('File:', '').replace('.ogg', '') + '</span><div class="ui label text small"><span id="duration">' + dur.toFixed(1) + ' seconds</span></div></a>')
+            $('#playlist').append(make_playlist_element(title, url, dur))
         }
         $('#playlist').children().each(function() {
             var li_index = $(this).index()

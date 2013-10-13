@@ -28,7 +28,7 @@ audio {
 	text-decoration: none;
 }
 
-#cat {
+.ui.label.cat {
 	margin-top: 5px;
 }
 
