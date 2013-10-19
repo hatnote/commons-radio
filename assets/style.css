@@ -16,7 +16,7 @@ audio {
 }
 
 .bar, .progress {
-	height: 1em !important;
+	height: 0.5em !important;
 }
 
 .item:hover {
@@ -30,6 +30,10 @@ audio {
 
 .ui.label.cat {
 	margin-top: 5px;
+}
+
+.ui.basic.segment {
+	padding: 1em 0;
 }
 
 .label {

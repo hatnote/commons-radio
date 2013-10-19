@@ -61,17 +61,11 @@
         }
     }
 
-    var next_tune_transition = function() {
-        return setTimeout(function () {
-            check_next_tune();
-            RadioC.transition = false;
-        }, TRACK_PADDING);
-    }
-
     $(function init(){
         $.getJSON('http://localhost:5000/rand/5?callback=?', function(data, textStatus, jqXHR) {
             get_file_props(data, function(tunes) {
-                append_new_tunes(tunes)
+                console.log(tunes)
+                append_playlist(tunes)
             }, function() { play_tune(Playing) });
         })
 
@@ -96,10 +90,10 @@
             },
             'loadstart': function() {
                 $('#progress-bar').attr('style', 'width: 0%');
-                $('#radio-loader').fadeIn()
+                $('.radio-loader').fadeIn()
             },
             'loadeddata': function() {
-                $('#radio-loader').fadeOut();
+                $('.radio-loader').fadeOut();
                 //visualization
                 if (context) {
                     setup_audio_nodes();
@@ -143,7 +137,7 @@
             play_tune(Playing - 1); // does it exist?
         })
         $('#load-button').click(function() {
-            fetch_more(append_new_tunes)
+            fetch_more(append_playlist)
         })
         $('#progress-bar-container').click(function(e) {
             if (RadioC.duration) {
@@ -272,10 +266,11 @@
 
     var play_tune = function(tune_id) {
         Playing = tune_id
-        var tune_li = $('#playlist a:eq(' + tune_id + ')');
-        var url = tune_li.attr('href');
-        var title = $('#title', tune_li).text();
-        tune_li.addClass('active').siblings().removeClass('active');
+        var url = Playlist[tune_id]['url'];
+        var title = Playlist[tune_id]['title'];
+        var dur = Playlist[tune_id]['duration'];
+       
+        //tune_li.addClass('active').siblings().removeClass('active');
         $(RadioC).attr('src', url)
         $(RadioC).load()
         $(RadioC)[0].play()
@@ -306,18 +301,13 @@
 
         $('#cp-desc').html('<a href="https://commons.wikimedia.org/wiki/User:' + Playlist[tune_id]['user'] + '" target="_new">' + Playlist[tune_id]['user'] + '</a>')
         //on ' + Playlist[tune_id]['timestamp'] + ', and used on ' + Playlist[tune_id]['usage'].length + ' ' + wikis + '.
-        var cat_list = '';
-        console.log(Playlist[tune_id])
         if (Playlist[tune_id]['categories']) {
-            $('#cp-cats').html(category_header)
-            $('#cp-cats').append(category_list)
+            $('#cp-cats').html(category_header.clone())
+            $('#cp-cats').append(category_list.clone())
             $.map(Playlist[tune_id]['categories'], function(r) {
                 var cur_color = random_color();
                 $('#cat-list').append(make_category_element(r['title'], cur_color))
             });
-        } else {
-            console.log('no cats')
-            $('#cp-cats').empty();
         }
     }
     // TODO: move these templates
@@ -350,13 +340,22 @@
         return colors[rand_i]
     }
 
+    var next_tune_transition = function() {
+        return setTimeout(function () {
+            check_next_tune();
+            RadioC.transition = false;
+        }, TRACK_PADDING);
+    }
+
     var play_next_tune = function() {
-        return play_tune(Playing + 1);
+        prepend_playhistory(Playing);
+        var tune_id = Playing + 1;
+        return play_tune(tune_id);
     }
 
     var check_next_tune = function() {
         if (Playing + 2 >= $('#playlist a').length) {
-            fetch_more(append_new_tunes, play_next_tune);
+            fetch_more(append_playlist, play_next_tune);
         } else {
             play_next_tune()
         }
@@ -381,15 +380,11 @@
         return ret
     }
 
-    var append_new_tunes = function(tunes) {
+    var append_playlist = function(tunes) {
         for(var i = 0; i < tunes.length; i++) {
-            Playlist.push(tunes[i])
-            var url = tunes[i]['url'];
-            var title = tunes[i]['title'];
-            var dur = tunes[i]['duration'];
-            // TODO: template?
-            $('#playlist').append(make_playlist_element(title, url, dur))
+            Playlist.push(tunes[i])      
         }
+
         $('#playlist').children().each(function() {
             var li_index = $(this).index()
             $(this).click(function(e) {
@@ -398,6 +393,17 @@
             })
                 
         });
+    }
+
+    var prepend_playhistory = function(tune_id) {
+        var url = Playlist[tune_id]['url'];
+        var title = Playlist[tune_id]['title'];
+        var dur = Playlist[tune_id]['duration'];
+        if (!$('#playhistory').find('a[href="' + url + '"]').length > 0) {
+            $('#playhistory').prepend(make_playlist_element(title, url, dur))
+        } else {
+            // pass
+        }
     }
 
     </script>
@@ -413,16 +419,17 @@
         </div>
         <p>Free and public domain sounds from Wikimedia Commons.</p>
 
-        <div class="ui segment basic">
-            <div class="ui active inverted dimmer" id="radio-loader">
-                <span class="ui text loader inverted">Loading...</span>
-            </div>
-            <div class="ui header">
+        <div class="ui segment attached top">
+            
+            <div class="ui header segment basic">
+                <div class="ui active inverted dimmer radio-loader">
+                    <span class="ui text loader inverted">Loading...</span>
+                </div>
                 <div class="sub header" id="cp-desc"></div>
                 <h2 class="ui header" id="cp-title"></h2>
             </div>
             <canvas id="songcanvas" width="800" height="50"></canvas>
-        
+            </div>
             <div class="ui top blue attached progress" id="progress-bar-container">
                 <div class="no-animate bar" id="progress-bar"></div>
             </div>
@@ -446,11 +453,12 @@
                 
                 <span class="item float right small" id="time-display">00:00</span>
                 
-                
             </div>
         
 
-        <div class="ui segment attached bottom" id="radio-ui">
+        <div class="ui segment attached" id="radio-ui">
+            <div class="ui active inverted dimmer radio-loader">
+            </div>
             <a class="ui top right attached label icon" href="#">
                 <i class="download disk icon"></i>
                 Download
@@ -460,15 +468,13 @@
             <p id="cp-cats"></p>
         
         </div> 
+        <h4 class="ui attached top header">
+        History
+        </h4>
+        <div class="ui fluid vertical menu attached bottom">
+            <div id="playhistory"></div>
         </div>
-    </div>
-    <div class="ui fluid vertical menu">
-        <div id="playlist"></div>
-        <div class="bottom attached ui button" id="load-button">
-            <i class="arrow sign down icon"></i>
-            Load more...
         
-        </div>
     </div>
     </body>
     </html>
