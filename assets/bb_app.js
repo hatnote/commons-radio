@@ -17,6 +17,8 @@
    - WP API -> image?
 */
 
+var App = {};
+
 function prep_url(url, params) {
     var params_string = '';
     for (var key in params) {
@@ -25,13 +27,25 @@ function prep_url(url, params) {
     return url + '?' + params_string;
 };
 
-var PlaylistInfo = Backbone.Model.extend({
+App.CommonsInfo = Backbone.Model.extend({
+  initialize: function(filename) {
+    this.filename = filename.get('title') || filename;
+  }
+});
+
+App.CommonsInfos = Backbone.Collection.extend({
+  model: App.CommonsInfo,
   initialize: function() {
-    this.fetch();
+    
+  },
+  filenames: function() {
+    var names = this.map(function(info) {
+        return info.filename;
+    });
+    return names
   },
   url: function() {
-    console.log('fetched')
-    var url_files = this.get('filenames').join('|File:')
+    var url_files = this.filenames().join('|File:');
     url_files = 'File:' + url_files;
     var api_url = 'http://commons.wikipedia.org/w/api.php';
     var params = {
@@ -51,62 +65,56 @@ var PlaylistInfo = Backbone.Model.extend({
     var pages = response['query']['pages'];
 
     var page_list = $.map(pages, function(r) {
-      return r
-    })
-    var ret = new Tracks(page_list);
-    return ret;
-  },
-  get_tracks: function() {
-
-  }
-});
-
-var Playlist = Backbone.Model.extend({
-  initialize: function() {
-    this.fetch();
-  },
-  url: 'http://localhost:5000/rand',
-  parse: function(response) {
-    ret = new PlaylistInfo({"filenames": response})
-    // playlist_info.fetch()
-  }
-});
-
-var Track = Backbone.Model.extend({
-  initialize: function() {
-    console.log(this)
-    var dur = 0;
-    //TODO: bug, no [0] item?
-    $.map(this.get('videoinfo')[0]['metadata'], function(r) {
-      if (r['name'] == 'length') {
-        dur = r['value'];
-      }
+      var ret = {};
+      var dur = 0;
+      //TODO: bug, no [0] item?
+      $.map(r['videoinfo'][0]['metadata'], function(i) {
+        if (i['name'] == 'length') {
+          dur = i['value'];
+        }
+      });
+      ret['url'] = r['videoinfo'][0]['url'];
+      ret['title'] = r['title'];
+      ret['duration'] = dur;
+      ret['pageid'] = r['pageid'];
+      ret['usage'] = r['globalusage'];
+      ret['categories'] = r['categories'];
+      ret['user'] = r['videoinfo'][0]['user'];
+      ret['timestamp'] = r['videoinfo'][0]['timestamp'];
+      return ret;
     });
-      this.url = ret_pages[page_id]['videoinfo'][0]['url'],
-      this.title: ret_pages[page_id]['title'],
-      'duration': dur,
-      'pageid': ret_pages[page_id]['pageid'],
-      'usage': ret_pages[page_id]['globalusage'],
-      'categories': ret_pages[page_id]['categories'],
-      'user': ret_pages[page_id]['videoinfo'][0]['user'],
-      'timestamp': ret_pages[page_id]['videoinfo'][0]['timestamp'],
-
-  }
-})
-
-var Tracks = Backbone.Collection.extend({
-  model: Track,
-})
-
-
-
-
-var Playlists = Backbone.Collection.extend({
-  model: Playlist,
-
+    return page_list;
+    //this.files = new FileCollection(page_list);
+  },
+  
 });
 
-var CommonsRadio = Backbone.View.extend({
+App.Playlist = Backbone.Model.extend({
+  url: 'http://localhost:5000/rand',
+  parse: function(resp) {
+    var new_files = new App.CommonsInfos(resp);
+    new_files.fetch();
+    if (!this.files) {
+      this.files = new_files;
+    } else {
+      this.files.add(new_files.models)
+    }
+  },
+  
+});
+
+
+App.File = Backbone.Model.extend({
+  initialize: function() {
+  }
+});
+
+var Files = Backbone.Collection.extend({
+  model: File,
+});
+
+
+App.CommonsRadio = Backbone.View.extend({
   initialize: function() {
 
   }
@@ -125,5 +133,6 @@ var CommonsRadio = Backbone.View.extend({
 //   "Pinechas-m_(Nevuchadnezzar).ogg"
 // ]})
 
-var playlist = new Playlist();
-
+var playlist = new App.Playlist();
+playlist.fetch()
+console.log(playlist)
