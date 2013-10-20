@@ -9,37 +9,25 @@ import random
 from argparse import ArgumentParser
 from clastic import Application, Response
 from clastic.middleware import GetParamMiddleware
-from clastic.render import JSONRender
+from clastic.render import JSONPRender
 
 DEFAULT_K = 5
 MIN_OGG_LENGTH = 50
 TARGET_FIELDS = 'img_name, length, img_size, img_user_text, img_timestamp, channels'.split(', ')
 SPOKEN_RE = re.compile(r'^[a-zA-Z]{2}\-')
 
-class JSONPRender(JSONRender):
-    def __call__(self, context, callback):
-        data = context
-        jsonp_cb = callback
-        json_iter = self.json_encoder.iterencode(data)
-        if jsonp_cb:
-            resp = Response(''.join([jsonp_cb, '(', ''.join([r for r in json_iter]), ')']), 
-                            mimetype="application/javascript")
-            
-        else:
-            resp = Response(json_iter, mimetype="application/json")
-        resp.mimetype_params['charset'] = self.json_encoder.encoding
-        return resp
 
 def random_oggs(oggs, k=DEFAULT_K):
     ret = [o['img_name'].strip() for o in random.sample(oggs, int(k))]
     return ret
 
+
 def open_db(db_name):
     ogg_db = sqlite3.connect(db_name)
     ogg_cursor = ogg_db.execute('select %s from audio_metadata' % ', '.join(TARGET_FIELDS))
-    all_oggs = ogg_cursor.fetchall()
-    all_oggs = [dict(zip(TARGET_FIELDS, ogg)) for ogg in all_oggs if not SPOKEN_RE.match(ogg[0])]
+    all_oggs = [dict(zip(TARGET_FIELDS, ogg)) for ogg in ogg_cursor if not SPOKEN_RE.match(ogg[0])]
     return all_oggs
+
 
 def main(db_name):
     oggs = open_db(db_name)
@@ -54,10 +42,10 @@ def main(db_name):
     app = Application(routes, resources, middlewares=[GetParamMiddleware('callback')])
     app.serve(static_path=cur_dir)
 
+
 if __name__ == '__main__':
     prs = ArgumentParser()
     prs.add_argument('filename')
     args = prs.parse_args()
 
     main(args.filename)
-    
