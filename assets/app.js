@@ -13,6 +13,7 @@ var source_node;
 
 // check if there is AudioContext support
 var context;
+
 if (typeof AudioContext !== "undefined") {
     context = new AudioContext();
 } else if (typeof webkitAudioContext !== "undefined") {
@@ -22,7 +23,7 @@ if (typeof AudioContext !== "undefined") {
     context = false;
 }
 
-var setup_audio_nodes = function() {
+function setup_audio_nodes() {
     source_node =  (source_node || context.createMediaElementSource(RadioC));
     analyser = (analyser || context.createAnalyser());
 
@@ -31,29 +32,120 @@ var setup_audio_nodes = function() {
     source_node.connect(analyser);
     source_node.connect(context.destination);
     draw_spectrum();
+}
 
-};
-
-var draw_spectrum = function() {
+function draw_spectrum() {
     var canvas = $('#songcanvas')[0];
+    var w = canvas.width;
+    var h = canvas.height;
     var ctx = canvas.getContext("2d");
-    
-    var gradient = ctx.createLinearGradient(0,0,0, canvas.height);
+    var analyser_array =  new Uint8Array(analyser.frequencyBinCount);
+    var audio_animation = requestAnimationFrame(draw_spectrum);
+    var gradient = ctx.createLinearGradient(0,0,0, h);
+
     gradient.addColorStop(1,'#6ECFF5');
     gradient.addColorStop(0,'#EF4D6D');
     ctx.fillStyle = gradient;
-    
-    var w = canvas.width;
-    var h = canvas.height;
-    var analyser_array =  new Uint8Array(analyser.frequencyBinCount);
-    var audio_animation = requestAnimationFrame(draw_spectrum);
     analyser.getByteFrequencyData(analyser_array);
     ctx.clearRect(0, 0, w, h);
-    for (var i = 0; i < (analyser_array.length); i++ ){
-        var analyser_value = analyser_array[i];
-        ctx.fillRect(i*4, h - (analyser_value / 5), 2, h * 3);
+    for (var i = 0; i < (analyser_array.length); i++ ) {
+        
+            var analyser_value = analyser_array[i];
+            ctx.fillRect(i*4, h - (analyser_value / 5), 2, h * 3);
+        
     }
-};
+}
+
+// templating
+var playlist_element = $('<a class="item" href="#"><span class="ui label text small duration"></span></a>');
+var track_title = $('<a href="" target="_blank"></a>');
+var use_element = $('<li><a href="#" class="ui blue label small use-label"></a> <a href="" target="_new" class="use-link"></a></li>')
+var user_title = $('<a href="" target="_new"></a>');
+var use_title = $('<h3 class="ui header">Used on</h3>');
+var category_link = $('<a class="ui small label cat white" href="#" target="_new"></a>');
+var category_header = $('<h3 class="ui header">Categories</h3>');
+
+function make_title_element(filename) {
+    var name = filename.replace('File:', '').replace('.ogg', '');
+    var ret = track_title.clone();
+    ret.attr('href', 'https://commons.wikimedia.org/wiki/File:' + name + '.ogg')
+    ret.text(name);
+    return ret;
+}
+
+function make_use_element(url, title, wiki) {
+    var ret = use_element.clone();
+    $('.use-label', ret).text(wiki);
+    $('.use-link', ret).attr('href', url);
+    $('.use-link', ret).text(title);
+    return ret;
+}
+
+function make_user_title(username) {
+    var ret = user_title.clone();
+    ret.attr('href', 'https://commons.wikimedia.org/wiki/User:' + username);
+    ret.text(username);
+    return ret;
+}
+
+function make_use_title() {
+    return use_title.clone();
+}
+
+function make_category_element(title) {
+    if (title.indexOf('Category:') === 0) {
+        title = title.replace('Category:', '');
+    }
+    var ret = category_link.clone();
+    ret.attr('href', 'https://commons.wikimedia.org/wiki/Category:' + title);
+    ret.text(title);
+    return ret;
+}
+
+function random_color() {
+    var colors = ['black',
+              'green',
+              'red',
+              'blue',
+              'purple',
+              'teal']
+    var rand_i = Math.floor(Math.random() * colors.length);
+    return colors[rand_i]
+}
+
+function make_playlist_element(filename, url, duration) {
+    var name = filename.replace('File:', '').replace('.ogg', '')
+    var ret = playlist_element.clone()
+    ret.attr('href', url).prepend(name)
+    ret.find('.duration').text(duration.toFixed(1) + ' seconds')
+    return ret
+}
+
+function append_playlist(tunes) {
+    for(var i = 0; i < tunes.length; i++) {
+        Playlist.push(tunes[i])      
+    }
+
+    $('#playlist').children().each(function() {
+        var li_index = $(this).index()
+        $(this).click(function(e) {
+            play_tune(li_index)
+            return false;
+        })
+            
+    });
+}
+
+function prepend_playhistory(tune_id) {
+    var url = Playlist[tune_id]['url'];
+    var title = Playlist[tune_id]['title'];
+    var dur = Playlist[tune_id]['duration'];
+    if (!$('#playhistory').find('a[href="' + url + '"]').length > 0) {
+        $('#playhistory').prepend(make_playlist_element(title, url, dur))
+    } else {
+        // pass
+    }
+}
 
 $(function init(){
     $.getJSON('http://localhost:5000/rand/5?callback=?', function(data, textStatus, jqXHR) {
@@ -131,7 +223,7 @@ $(function init(){
         play_tune(Playing - 1); // does it exist?
     });
     $('#load-button').click(function() {
-        fetch_more(append_playlist)
+        fetch_more(append_playlist);
     });
     $('#progress-bar-container').click(function(e) {
         if (RadioC.duration) {
@@ -144,7 +236,7 @@ $(function init(){
     }
 });
 
-var fancy_time = function(sec) {
+function fancy_time(sec) {
 
     var minutes = Math.floor(sec / 60);
     if (minutes <= 9) { minutes = ("0" + minutes); }
@@ -152,18 +244,17 @@ var fancy_time = function(sec) {
     var seconds = parseInt(sec % 60, 10);
     if (seconds <= 9) { seconds = ("0" + seconds); }
     return minutes + ':' + seconds;
-};
+}
 
-
-var prep_url = function(url, params) {
+function prep_url(url, params) {
     var params_string = '';
     for (var key in params) {
         params_string += '&' + key + '=' + params[key];
     }
     return url + '?' + params_string;
-};
+}
 
-var get_file_props = function(filenames, cb, final_cb) {
+function get_file_props(filenames, cb, final_cb) {
     var filestr = '';
     for (var i = 0; i < filenames.length; i++) {
         var file = filenames[i];
@@ -212,16 +303,16 @@ var get_file_props = function(filenames, cb, final_cb) {
                     'user': ret_pages[page_id]['videoinfo'][0]['user'],
                     'timestamp': ret_pages[page_id]['videoinfo'][0]['timestamp'],
                 });
-            };
+            }
         }
         cb(ret_urls);
         if (final_cb) {
             final_cb();
         }
     });
-};
+}
 
-var get_image_from_pg = function(title, wiki) {
+function get_image_from_pg(title, wiki) {
     var api_url = 'http://' + wiki + '/w/api.php';
     var params = {
         'action': 'query',
@@ -255,9 +346,9 @@ var get_image_from_pg = function(title, wiki) {
             }
         }
     });
-};
+}
 
-var play_tune = function(tune_id) {
+function play_tune(tune_id) {
     Playing = tune_id;
     var url = Playlist[tune_id]['url'];
     var title = Playlist[tune_id]['title'];
@@ -270,131 +361,62 @@ var play_tune = function(tune_id) {
     
     //adjust cp ui
     $('#cp-cover').empty();
+    $('#cp-more').empty();
+    $('#cp-cats .cat').remove();
     // TODO: template?
-    $('#cp-title').html('<a href="https://commons.wikimedia.org/wiki/File:' + title + '.ogg" target="_blank">' + title + '</a>');
-    var use_list = '';
+    $('#cp-title').html(make_title_element(title));
+    $('#cp-desc').html(make_user_title(Playlist[tune_id]['user']))
     if (Playlist[tune_id]['usage'].length > 0) {
         $.map(Playlist[tune_id]['usage'], function(r) {
-            // TODO: template?
-            use_list += '<p><a href="' + r['url'] + '" target="_new">' + r['title'] + '</a> <a href="#" class="ui blue label small">' + r['wiki'] + '</a></p>';
+            $('#cp-more').append(make_use_element(r['url'], r['title'], r['wiki']));
             //
-            if ($('#cp-cover').children().length == 0) {
+            if ($('#cp-cover').children().length === 0) {
                 // only get the first image
-                get_image_from_pg(r['title'], r['wiki']); 
+                get_image_from_pg(r['title'], r['wiki']);
             }
         });
         // TODO: template?
-        $('#cp-more').html('<h3 class="ui header">Used on</h3> ' + use_list);
+        $('#cp-more').prepend(make_use_title());
         
-    } else {
-        $('#cp-more').empty()
     }
     //TODO: templates? organize this!
     var wikis = (Playlist[tune_id]['usage'].length == 1) ? 'wiki' : 'wikis';
-
-    $('#cp-desc').html('<a href="https://commons.wikimedia.org/wiki/User:' + Playlist[tune_id]['user'] + '" target="_new">' + Playlist[tune_id]['user'] + '</a>')
     //on ' + Playlist[tune_id]['timestamp'] + ', and used on ' + Playlist[tune_id]['usage'].length + ' ' + wikis + '.
     if (Playlist[tune_id]['categories']) {
-        $('#cp-cats').html(category_header.clone());
-        $('#cp-cats').append(category_list.clone());
         $.map(Playlist[tune_id]['categories'], function(r) {
-            var cur_color = random_color();
-            $('#cat-list').append(make_category_element(r['title'], cur_color));
+            $('#cp-cats').append(make_category_element(r['title']));
         });
     }
 }
 // TODO: move these templates
-var category_link = $('<a class="ui small label cat" href="#" target="_new"></a>');
-'<h3 class="ui header">Categories</h3>'
-var category_list = $('<p id="cat-list"></p>');
-var category_header = $('<h3 class="ui header">Categories</h3>');
 
-var make_category_element = function(title, cur_color) {
-    if (title.indexOf('Category:') == 0) {
-        title = title.replace('Category:', '');
-    }
-    var ret = category_link.clone()
-    ret.attr('href', 'https://commons.wikimedia.org/wiki/Category:' + title);
-    if (cur_color) {
-        ret.addClass(cur_color)
-    }
-    ret.text(title)
-    return ret
-}
 
-var random_color = function() {
-    var colors = ['black',
-              'green',
-              'red',
-              'blue',
-              'purple',
-              'teal']
-    var rand_i = Math.floor(Math.random() * colors.length);
-    return colors[rand_i]
-}
-
-var next_tune_transition = function() {
+function next_tune_transition() {
     return setTimeout(function () {
         check_next_tune();
         RadioC.transition = false;
     }, TRACK_PADDING);
 }
 
-var play_next_tune = function() {
+function play_next_tune() {
     prepend_playhistory(Playing);
     var tune_id = Playing + 1;
     return play_tune(tune_id);
 }
 
-var check_next_tune = function() {
+function check_next_tune() {
     if (Playing + 2 >= $('#playlist a').length) {
         fetch_more(append_playlist, play_next_tune);
     } else {
-        play_next_tune()
+        play_next_tune();
     }
 }
 
-var fetch_more = function(cb, final_cb) {
+function fetch_more(cb, final_cb) {
     $.getJSON('http://localhost:5000/rand/5?callback=?', function(data, textStatus, jqXHR) {
         get_file_props(data, function(tunes) {
             cb(tunes);
         }, final_cb);
-    })
-}
-
-//TODO: move these templates
-var playlist_element = $('<a class="item" href="#"><span class="ui label text small duration"></span></a>')
-
-var make_playlist_element = function(filename, url, duration) {
-    var name = filename.replace('File:', '').replace('.ogg', '')
-    var ret = playlist_element.clone()
-    ret.attr('href', url).prepend(name)
-    ret.find('.duration').text(duration.toFixed(1) + ' seconds')
-    return ret
-}
-
-var append_playlist = function(tunes) {
-    for(var i = 0; i < tunes.length; i++) {
-        Playlist.push(tunes[i])      
-    }
-
-    $('#playlist').children().each(function() {
-        var li_index = $(this).index()
-        $(this).click(function(e) {
-            play_tune(li_index)
-            return false;
-        })
-            
     });
 }
 
-var prepend_playhistory = function(tune_id) {
-    var url = Playlist[tune_id]['url'];
-    var title = Playlist[tune_id]['title'];
-    var dur = Playlist[tune_id]['duration'];
-    if (!$('#playhistory').find('a[href="' + url + '"]').length > 0) {
-        $('#playhistory').prepend(make_playlist_element(title, url, dur))
-    } else {
-        // pass
-    }
-}
