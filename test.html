@@ -22,15 +22,15 @@
                     <div class="ui active inverted dimmer radio-loader">
                         <span class="ui text loader inverted">Loading...</span>
                     </div>
+                    <span id="cp-cover"></span>
                     <div class="sub header" id="cp-desc"></div>
                     <h2 class="ui header" id="cp-title"></h2>
+                    <canvas id="songcanvas" width="600" height="50"></canvas>
                 </div>
-                <canvas id="songcanvas" width="800" height="50"></canvas>
-
-            <div class="ui top blue attached progress" id="progress-bar-container">
+        </div>
+             <div class="ui top blue attached progress" id="progress-bar-container">
                 <div class="no-animate bar" id="progress-bar"></div>
             </div>
-        </div>
             <div class="ui menu inverted attached bottom">
                 <a class="item" id="prev-button">
                     <i class="step backward icon"></i>
@@ -60,9 +60,9 @@
                 <i class="download disk icon"></i>
                 Download
             </a>
+            <p id="cp-cover"></p>
             <p id="cp-desc"></p>
             <ul id="cp-more"></ul>
-            <p ></p>
         
         </div> 
         <div class="ui segment attached bottom secondary" id="cp-cats"><i class="tags icon"></i> </div>
