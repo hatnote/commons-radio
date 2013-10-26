@@ -1,7 +1,7 @@
 
 // rep -v 'Deletion_requests' commonswiki-latest-all-titles | grep '\.ogg$' > ../commons_ogg.txt
 // based on http://blog.lastrose.com/html5-audio-video-playlist/
-// equalizar visualization based on: http://jsbin.com/acolet/70/edit    
+// equalizar visualization based on: http://jsbin.com/acolet/70/edit
 var TRACK_PADDING = 500;
 var DEBUG = true;
 // =====================//
@@ -9,6 +9,7 @@ var RadioC = new Audio();
 var Playlist = [];
 var Playing = 0;
 var analyser;
+var analyser_array;
 var source_node;
 
 // check if there is AudioContext support
@@ -26,7 +27,7 @@ if (typeof AudioContext !== "undefined") {
 function setup_audio_nodes() {
   source_node =  (source_node || context.createMediaElementSource(RadioC));
   analyser = (analyser || context.createAnalyser());
-
+  analyser_array = new Uint8Array(analyser.frequencyBinCount);
   analyser.smoothingTimeConstant = 0.92;
   analyser.fftSize = 512;
   source_node.connect(analyser);
@@ -39,18 +40,19 @@ function draw_spectrum() {
   var w = canvas.width;
   var h = canvas.height;
   var ctx = canvas.getContext("2d");
-  var analyser_array =  new Uint8Array(analyser.frequencyBinCount);
   var audio_animation = requestAnimationFrame(draw_spectrum);
   var gradient = ctx.createLinearGradient(0,0,0, h);
 
   gradient.addColorStop(1,'#6ECFF5');
   gradient.addColorStop(0,'#EF4D6D');
   ctx.fillStyle = gradient;
-  analyser.getByteFrequencyData(analyser_array);
-  ctx.clearRect(0, 0, w, h);
-  for (var i = 0; i < (analyser_array.length); i++ ) {      
-    var analyser_value = analyser_array[i];
-    ctx.fillRect(i * 4, h - (analyser_value / 5), 2, h * 3);
+  if ($('#play-button').hasClass('active')) {
+    analyser.getByteFrequencyData(analyser_array);
+    ctx.clearRect(0, 0, w, h);
+    for (var i = 0; i < (analyser_array.length); i++ ) {
+        var analyser_value = analyser_array[i];
+        ctx.fillRect(i * 4, h - (analyser_value / 5), 2, h * 3);
+    }
   }
 }
 
@@ -160,7 +162,7 @@ $(function init(){
             $('#time-display').html(fancy_time(RadioC.currentTime) + ' / ' + fancy_time(RadioC.duration));
         },
         'pause': function() {
-            
+
         },
         'play': function() {
             $('#play-button').addClass('active').hide();
@@ -338,7 +340,7 @@ function get_image_from_pg(title, wiki) {
             return true;
           }
         }
-      }   
+      }
     }
   });
 }
@@ -348,12 +350,12 @@ function play_tune(tune_id) {
   var url = Playlist[tune_id]['url'];
   var title = Playlist[tune_id]['title'];
   var dur = Playlist[tune_id]['duration'];
- 
+
   //tune_li.addClass('active').siblings().removeClass('active');
   $(RadioC).attr('src', url);
   $(RadioC).load();
   $(RadioC)[0].play();
-  
+
   //adjust cp ui
   $('#cp-cover').empty();
   $('#cp-more').empty();
@@ -371,7 +373,7 @@ function play_tune(tune_id) {
       }
     });
     $('#cp-more').prepend(make_use_title());
-      
+
   }
   var wikis = (Playlist[tune_id]['usage'].length == 1) ? 'wiki' : 'wikis';
   //on ' + Playlist[tune_id]['timestamp'] + ', and used on ' + Playlist[tune_id]['usage'].length + ' ' + wikis + '.
@@ -411,4 +413,3 @@ function fetch_more(cb, final_cb) {
       }, final_cb);
   });
 }
-
