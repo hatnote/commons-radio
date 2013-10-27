@@ -16,17 +16,18 @@
             <h1 class="ui header">Commons Radio</h1>
         </div>
         <p>Free and public domain sounds from Wikimedia Commons.</p>
-
-        <div class="ui segment attached top">
-                <div class="ui header segment basic">
-                    <div class="ui active inverted dimmer radio-loader">
-                        <span class="ui text loader inverted">Loading...</span>
-                    </div>
-                    <span id="cp-cover"></span>
-                    <div class="sub header" id="cp-desc"></div>
-                    <h2 class="ui header" id="cp-title"></h2>
-                    <canvas id="songcanvas" width="600" height="50"></canvas>
-                </div>
+        <div id="radio-full">
+        <div class="ui segment attached top" id="radio-top">
+            <div class="ui active inverted dimmer radio-loader">
+                <span class="ui text loader inverted">Loading...</span>
+            </div>
+            <div id="cp-cover"></div>
+            <div class="ui header segment basic" id="title-info">
+                
+                <div class="sub header" id="cp-desc"></div>
+                <h2 class="ui header" id="cp-title"></h2>
+                <canvas id="songcanvas" width="576" height="120"></canvas>
+            </div>
         </div>
              <div class="ui top blue attached progress" id="progress-bar-container">
                 <div class="no-animate bar" id="progress-bar"></div>
@@ -60,7 +61,6 @@
                 <i class="download disk icon"></i>
                 Download
             </a>
-            <p id="cp-cover"></p>
             <p id="cp-desc"></p>
             <ul id="cp-more"></ul>
         
@@ -72,7 +72,6 @@
         <div class="ui fluid vertical menu attached bottom">
             <div id="playhistory"></div>
         </div>
-        
     </div>
     </body>
     </html>

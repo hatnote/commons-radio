@@ -304,6 +304,45 @@ function get_file_props(filenames, cb, final_cb) {
   });
 }
 
+function resized_url(url, size) {
+  // 0_0
+  // there must be ... a better way
+  var split_spot = url.lastIndexOf('commons/');
+  // TODO: assumes commons, generate thumb from local images
+  var first_half = url.substring(0, split_spot);
+  var last_half = url.substring(split_spot + 8);
+  var filename = url.substring(url.lastIndexOf('/') + 1);
+  var thumb_url = first_half + 'commons/thumb/' + last_half + '/' + size + 'px-' + filename;
+  return thumb_url;
+}
+
+function insert_imgs(urls, tried) {
+  var url;
+  tried = tried || [];
+  if (urls.length === tried.length) {
+    return false;
+  }
+  for (var i = 0; i < urls.length; i++) {
+    url = urls[i];
+    if (tried.indexOf(url) < 0) {
+      tried.push(url);
+      break;
+    }
+  }
+  var thumb_url = resized_url(url, 300);
+  $('#cp-cover').html('<img src="' + thumb_url + '" class="ui rounded right floated image">');
+  $('#cp-cover img').error(function() {
+    insert_imgs(urls, tried);
+  });
+}
+
+//+ Jonas Raoni Soares Silva
+//@ http://jsfromhell.com/array/shuffle [v1.0]
+function shuffle(o){ //v1.0
+    for(var j, x, i = o.length; i; j = Math.floor(Math.random() * i), x = o[--i], o[i] = o[j], o[j] = x);
+    return o;
+};
+
 function get_image_from_pg(title, wiki) {
   var api_url = 'http://' + wiki + '/w/api.php';
   var params = {
@@ -316,6 +355,8 @@ function get_image_from_pg(title, wiki) {
     'callback': '?'
   };
   var api_query_url = prep_url(api_url, params);
+  var found_img = false;
+  var urls = [];
   $.getJSON(api_query_url, function(data, textStatus, jqXHR) {
     if (data['query']) {
       var ret_pages = data['query']['pages'];
@@ -323,23 +364,14 @@ function get_image_from_pg(title, wiki) {
         if (ret_pages.hasOwnProperty(page_id)) {
           var cur_page = ret_pages[page_id];
           if (cur_page['imageinfo'] && cur_page['imageinfo'][0]['mime'] == 'image/jpeg' && cur_page['imagerepository'] == 'shared') {
-            // TODO: generate thumb from local images
-            // TODO: check image size -- if it's smaller than 200px, we can't generate a thumbnail
-            var cur_url = cur_page['imageinfo'][0]['url'];
-            console.log(cur_url);
-            // 0_0
-            var split_spot = cur_url.lastIndexOf('commons/');
-            var first_half = cur_url.substring(0, split_spot);
-            var last_half = cur_url.substring(split_spot + 8);
-            var filename = cur_url.substring(cur_url.lastIndexOf('/') + 1);
-            var thumb_url = first_half + 'commons/thumb/' + last_half + '/200px-' + filename;
-            // TODO: template?
-            $('#cp-cover').html('<img src="' + thumb_url + '" class="ui rounded right floated image">');
-            return true;
+            urls.push(cur_page['imageinfo'][0]['url']);
+            
           }
         }
-      }   
+      }
     }
+    urls = shuffle(urls);
+    insert_imgs(urls, []);
   });
 }
 
@@ -367,7 +399,9 @@ function play_tune(tune_id) {
       $('#cp-more').append(make_use_element(r['url'], r['title'], r['wiki']));
       if ($('#cp-cover').children().length === 0) {
         // only get the first image
-        get_image_from_pg(r['title'], r['wiki']);
+        if ($('#cp-cover img').length !== 1) {
+          get_image_from_pg(r['title'], r['wiki']);
+        }
       }
     });
     $('#cp-more').prepend(make_use_title());

@@ -48,11 +48,40 @@ audio {
 .header a:hover {
 	border-bottom: 1px solid #6ECFF5;
 }
+.ui.floated.image, .ui.floated.images {
+	margin: 0;
+}
 
 #cp-title {
 	margin: 0;
 }
 
+#radio-top {
+	padding: 0;
+}
+
+#radio-top h2 {
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+#title-info {
+	padding: 1em 0 0 1em;
+}
+
+#cp-cover {
+	width: 300px;
+	height: 200px;
+	overflow:hidden;
+	float: right;
+	background: #FAF9FA;
+	border-left: 1px solid #EBEBEB;
+
+}
+#radio-full {
+	min-width: 900px;
+}
 .no-animate {
 	-webkit-transition: none !important;
  	-moz-transition: none !important;
