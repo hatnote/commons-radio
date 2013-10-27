@@ -72,15 +72,29 @@ audio {
 
 #cp-cover {
 	width: 300px;
-	height: 200px;
+	height: 140px;
 	overflow:hidden;
 	float: right;
 	background: #FAF9FA;
 	border-left: 1px solid #EBEBEB;
-
+	vertical-align:middle;
 }
+
+#cp-cover img {
+	top: -20%;
+}
+
 #radio-full {
 	min-width: 900px;
+}
+
+#cp-cats i {
+	margin-top: 0.5em;
+	float: left;
+}
+
+#cp-cats-c {
+	margin-left: 1.2em;
 }
 .no-animate {
 	-webkit-transition: none !important;

@@ -11,6 +11,7 @@ from clastic import Application, Response
 from clastic.middleware import GetParamMiddleware
 from clastic.render import JSONPRender
 
+DEFAULT_DB_FILENAME = 'ogg_table_metadata.db'
 DEFAULT_K = 5
 MIN_OGG_LENGTH = 50
 TARGET_FIELDS = 'img_name, length, img_size, img_user_text, img_timestamp, channels'.split(', ')
@@ -45,7 +46,7 @@ def main(db_name):
 
 if __name__ == '__main__':
     prs = ArgumentParser()
-    prs.add_argument('filename')
+    prs.add_argument('--filename', default=DEFAULT_DB_FILENAME)
     args = prs.parse_args()
 
     main(args.filename)
