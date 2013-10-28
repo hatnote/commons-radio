@@ -4,6 +4,11 @@
 // equalizar visualization based on: http://jsbin.com/acolet/70/edit
 var TRACK_PADDING = 500;
 var DEBUG = true;
+var PLAYLIST_MODE = 'random'; /* random/recent */
+var TUNE_MIN = 45;
+var TUNE_MAX = 900;
+var INC_UNUSED = true;
+var INC_SPOKEN = true;
 // =====================//
 var RadioC = new Audio();
 var Playlist = [];
@@ -50,8 +55,8 @@ function draw_spectrum() {
     analyser.getByteFrequencyData(analyser_array);
     ctx.clearRect(0, 0, w, h);
     for (var i = 0; i < (analyser_array.length); i++ ) {
-        var analyser_value = analyser_array[i];
-        ctx.fillRect(i * 4, h - (analyser_value / 5), 2, h * 3);
+      var analyser_value = analyser_array[i];
+      ctx.fillRect(i * 4, h - (analyser_value / 5), 2, h * 3);
     }
   }
 }
@@ -120,25 +125,66 @@ function make_playlist_element(filename, url, duration) {
   return ret;
 }
 
+function normalize_name_underscore(title) {
+  return title.replace(/ /g, '_').replace('File:', '');
+}
+
+function normalize_name(title) {
+  return title.replace(/_/g, ' ').replace('File:', '');
+}
+
 function append_playlist(tunes) {
   for(var i = 0; i < tunes.length; i++) {
-      Playlist.push(tunes[i]);
+    Playlist.push(tunes[i]);
+  }
+  Playlist = _.uniq(Playlist, false, function(item) { return item['title']; });
+}
+
+function append_specific_tune(url) {
+  var name = url.slice(url.indexOf('File:'), url.length);
+  console.log(name);
+  var norm_name = 'File:' + normalize_name(name);
+  var found = false;
+  for (var i = 0; i < Playlist.length; i++) {
+    var pl_title = Playlist[i]['title'];
+    if (pl_title === norm_name) {
+      found = true;
+      break;
+    }
+  }
+  if (found) {
+    play_tune(i);
+  } else {
+    get_file_props([name], function(tunes) {
+      append_playlist(tunes);
+    }, function() {
+      play_tune(Playlist.length - 1);
+      fetch_more(append_playlist);
+    });
   }
 }
 
 function prepend_playhistory(tune_id) {
-    var url = Playlist[tune_id]['url'];
-    var title = Playlist[tune_id]['title'];
-    var dur = Playlist[tune_id]['duration'];
-    if ($('#playhistory').find('a[href="' + url + '"]').length === 0) {
-        $('#playhistory').prepend(make_playlist_element(title, url, dur));
-    } else {
-        // pass
-    }
+  if (!Playlist[tune_id]) {
+    // failsafe back to random
+    console.log('reverting to random');
+    PLAYLIST_MODE = 'random';
+    Playing = Playlist.length - 2;
+    fetch_more(append_playlist, function() {}, true);
+  }
+  var url = Playlist[tune_id]['url'];
+  var title = Playlist[tune_id]['title'];
+  var dur = Playlist[tune_id]['duration'];
+  if ($('#playhistory').find('a[href="' + url + '"]').length === 0) {
+    $('#playhistory').prepend(make_playlist_element(title, url, dur));
+  } else {
+    // pass
+  }
 }
 
 $(function init(){
-  $.getJSON('http://localhost:5000/rand/5?callback=?', function(data, textStatus, jqXHR) {
+  url = gen_url();
+  $.getJSON(url, function(data, textStatus, jqXHR) {
       get_file_props(data, function(tunes) {
           append_playlist(tunes);
       }, function() { play_tune(Playing); });
@@ -189,6 +235,8 @@ $(function init(){
     }
   });
 
+  RadioC.volume = 0;
+
   // custom controls
   $('#play-button').click(function() {
     $('#pause-button').removeClass('active').show();
@@ -224,11 +272,43 @@ $(function init(){
       RadioC.currentTime = (e.offsetX / this.offsetWidth) * RadioC.duration;
     }
   });
-  $('#min-dir').change(function() {
+  $('#min-dur').change(function() {
+    var min_str = $(this).val();
+    // yuk
+    if (min_str === '15 seconds') {
+      TUNE_MIN = 15;
+    } else if (min_str === '45 seconds') {
+      TUNE_MIN = 45;
+    } else if (min_str === 'any length') {
+      TUNE_MIN = 1;
+    }
+  });
+  $('#max-dur').change(function() {
+    var max_str = $(this).val();
+    // eww
+    if (max_str === '15 minutes') {
+      TUNE_MAX = 900;
+    } else if (max_str === '5 minutes') {
+      TUNE_MAX = 300;
+    } else if (max_str === '1 minute') {
+      TUNE_MAX = 60;
+    } else if (max_str === 'any length') {
+      TUNE_MAX = 10800;
+    }
     console.log($(this).val());
   });
-  $('#max-dir').change(function() {
-    console.log($(this).val());
+  $('#choice').change(function() {
+    var choice = $(this).val()
+    if (choice == 'randomly') {
+      $('#min-dur').prop('disabled', false);
+      $('#max-dur').prop('disabled', false);
+      start_random();
+    } else if (choice == 'by most recent') {
+      start_most_recent();
+      // resetting
+      $('#min-dur').val('45 seconds').prop('disabled', 'disabled');
+      $('#max-dur').val('15 minutes').prop('disabled', 'disabled');
+    }
   });
   $('#spoken').change(function() {
     console.log($(this).is(':checked'));
@@ -252,9 +332,14 @@ $(function init(){
     } else {
       $('#load-area input').parent().removeClass('error');
       $('#load-error').remove();
-      console.log(load_url);
+      try {
+        append_specific_tune(load_url);
+      } catch (e) {
+        $('#load-area input').parent().addClass('error');
+        $('#load-area input').parent().append('<div class="ui red pointing above ui label" id="load-error">Please include a URL to a file on Wikimedia Commons</div>')
+      }
     }
-  })
+  });
   // viz stuff
   if (!context) {
     $('#songcanvas').hide();
@@ -481,6 +566,17 @@ function get_summary(wikis) {
 
 function play_tune(tune_id) {
   Playing = tune_id;
+  if (!INC_UNUSED) {
+    console.log('no unused')
+    if (!Playlist[tune_id]['usage'] || Playlist[tune_id]['usage'].length === 0) {
+      setTimeout(function() {
+        Playing + 1;
+        fetch_more(append_playlist, play_next_tune);
+        console.log(tune_id)
+      }, TRACK_PADDING * 3);
+      return;
+    }
+  }
   prepend_playhistory(Playing);
   var url = Playlist[tune_id]['url'];
   var title = Playlist[tune_id]['title'];
@@ -549,15 +645,65 @@ function play_next_tune() {
 }
 
 function check_next_tune() {
-  if (Playing + 2 >= Playlist.length) {
+  if (Playing + 4 >= Playlist.length) {
     fetch_more(append_playlist, play_next_tune);
   } else {
     play_next_tune();
   }
 }
 
-function fetch_more(cb, final_cb) {
-  $.getJSON('http://localhost:5000/rand/5?callback=?', function(data, textStatus, jqXHR) {
+function start_most_recent() {
+  PLAYLIST_MODE = 'recent';
+  console.log('starting recent mode');
+  fetch_more(append_playlist, function() {}, '');
+}
+
+function start_random() {
+  PLAYLIST_MODE = 'random';
+  console.log('starting random mode');
+  fetch_more(append_playlist, function() {}, '');
+}
+
+function gen_url(cursor) {
+  // there must be a better way
+  var host = 'http://localhost:5000/';
+  var route;
+  var name = '';
+  var k = '6';
+  var rmin = '';
+  var rmax = '';
+  var cb = '&callback=?';
+  if (PLAYLIST_MODE == 'random') {
+    route = 'rand/';
+  } else if (PLAYLIST_MODE == 'recent') {
+    route = 'recent/';
+  }
+  if (cursor) {
+    name = '&name=' + cursor;
+  }
+  if (TUNE_MIN && TUNE_MIN !== 45) {
+    route = 'rand_dur/';
+    name = '';
+    rmin = '&min=' + TUNE_MIN;
+  }
+  if (TUNE_MAX && TUNE_MAX !== 900) {
+    route = 'rand_dur/';
+    name = '';
+    rmax = '&max=' + TUNE_MAX;
+  }
+  return host + route + k + '?' + name + rmin + rmax + cb;
+}
+
+function fetch_more(cb, final_cb, reset_cursor) {
+  var url;
+  var cursor;
+  if (reset_cursor) {
+    cursor = '';
+  } else {
+    cursor = normalize_name_underscore(Playlist[Playlist.length - 1]['title']);
+  }
+  url = gen_url(cursor);
+  $.getJSON(url, function(data, textStatus, jqXHR) {
       get_file_props(data, function(tunes) {
         cb(tunes);
       }, final_cb);

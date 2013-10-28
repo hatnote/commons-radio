@@ -18,9 +18,21 @@ TARGET_FIELDS = 'img_name, length, img_size, img_user_text, img_timestamp, chann
 SPOKEN_RE = re.compile(r'^[a-zA-Z]{2}\-')
 
 
-def random_oggs(oggs, k=DEFAULT_K):
-    ret = [o['img_name'].strip() for o in random.sample(oggs, int(k))]
+def random_oggs(rand_name_idx_map, rand_oggs, k=DEFAULT_K, name=None):
+    idx = random.randrange(len(rand_oggs) + k)
+    if name:
+        idx = rand_name_idx_map.get(name, 0)
+        idx += 1
+    ret = [o['img_name'].strip() for o in rand_oggs[idx:idx + k]]
     return ret
+
+def random_by_dur(all_oggs, k=DEFAULT_K, min=None, max=None):
+    if not min:
+        min = 0
+    if not max:
+        max = 10800
+    sample = random.sample([o['img_name'] for o in all_oggs if o['length'] > int(min) and o['length'] < int(max)], 5)
+    return sample
 
 
 def open_db(db_name):
@@ -30,9 +42,9 @@ def open_db(db_name):
     all_oggs.sort(key=lambda o: o['img_timestamp'], reverse=True)
     return all_oggs
 
+
 def recent_oggs(name_idx_map, oggs, k=DEFAULT_K, name=None):
     idx = 0
-    k = int(k)
     if name:
         idx = name_idx_map.get(name, 0)
         if idx:
@@ -41,22 +53,32 @@ def recent_oggs(name_idx_map, oggs, k=DEFAULT_K, name=None):
 
 
 def main(db_name):
-    oggs = open_db(db_name)
-    oggs = [f for f in oggs if f['length'] > MIN_OGG_LENGTH]
+    all_oggs = open_db(db_name)
+    oggs = [f for f in all_oggs if f['length'] > MIN_OGG_LENGTH]
     oggs = [f for f in oggs if not SPOKEN_RE.match(f['img_name'])]
     name_idx_map = {name['img_name']: i for i, name in enumerate(oggs)}
+    rand_oggs = list(oggs)
+    random.shuffle(rand_oggs)
+    rand_name_idx_map = {name['img_name']: i for i, name in enumerate(rand_oggs)}
     render_jsonp = JSONPRender()
     cur_dir = os.path.abspath(os.path.dirname(__file__))
     resources = {'oggs': oggs,
-                 'name_idx_map': name_idx_map}
+                 'rand_oggs': rand_oggs,
+                 'all_oggs': all_oggs,
+                 'name_idx_map': name_idx_map,
+                 'rand_name_idx_map': rand_name_idx_map}
 
     routes = [('/rand', random_oggs, render_jsonp),
-              ('/rand/<k>', random_oggs, render_jsonp),
+              ('/rand/<int:k>', random_oggs, render_jsonp),
               ('/recent', recent_oggs, render_jsonp),
-              ('/recent/<k>', recent_oggs, render_jsonp)]
+              ('/recent/<int:k>', recent_oggs, render_jsonp),
+              ('/rand_dur', random_by_dur, render_jsonp),
+              ('/rand_dur/<int:k>', random_by_dur, render_jsonp)]
 
     middlewares = [GetParamMiddleware('callback'),
-                   GetParamMiddleware('name')]
+                   GetParamMiddleware('name'),
+                   GetParamMiddleware('min'),
+                   GetParamMiddleware('max')]
 
     app = Application(routes, resources, middlewares=middlewares)
     app.serve(static_path=cur_dir)

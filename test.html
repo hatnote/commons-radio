@@ -71,9 +71,9 @@
 
             <div class="ui secondary segment attached" id="settings-area">
                 <h4>Settings</h4>
-                <p><input type="checkbox" id="spoken">
+                <p><input type="checkbox" id="spoken" checked disabled>
                 <label for="spoken">Include spoken sound files</label></p>
-                <p><input type="checkbox" id="unused" checked>
+                <p><input type="checkbox" id="unused" checked disabled>
                 <label for="unused">Include unused sound files</label></p>
                 <p class="len-setting">Include sounds longer than
                     <select name="min-dur" id="min-dur">
@@ -87,6 +87,12 @@
                         <option>5 minutes</option>
                         <option>1 minute</option>
                         <option>any length</option>
+                    </select>
+                </p>
+                <p class="len-setting">Choose sounds
+                    <select name="choice" id="choice">
+                        <option selected>randomly</option>
+                        <option>by most recent</option>
                     </select>
                 </p>
             </div>

@@ -132,9 +132,6 @@ ui.small.labels .label, .ui.small.label {
 	margin-top: 1em;
 }
 
-.ui.selection.dropdown {
-	vertical-align: middle;
-}
 
 .use-label {
 	color: rgba(0, 0, 0, 0.8);
