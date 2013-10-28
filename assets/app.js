@@ -59,10 +59,10 @@ function draw_spectrum() {
 // templating
 var playlist_element = $('<a class="item" href="#"></a>');
 var track_title = $('<a href="" target="_blank"></a>');
-var use_element = $('<li><a href="#" class="ui blue label small use-label"></a> <a href="" target="_new" class="use-link"></a></li>');
-var user_title = $('<a href="" target="_new"></a>');
-var use_title = $('<h3 class="ui header">Used on</h3>');
-var category_link = $('<a class="ui small label cat white" href="#" target="_new"></a>');
+var use_element = $('<span class="use"><a href="" target="_blank" class="ui use-link"></a> <span class="use-label"></span></span>');
+var user_title = $('<a href="" target="_blank"></a>');
+var use_title = $('<span>Used on </span> ');
+var category_link = $('<a class="ui small label cat white" href="#" target="_blank"></a>');
 var category_header = $('<h3 class="ui header">Categories</h3>');
 
 function make_title_element(filename) {
@@ -75,7 +75,7 @@ function make_title_element(filename) {
 
 function make_use_element(url, title, wiki) {
   var ret = use_element.clone();
-  $('.use-label', ret).text(wiki);
+  $('.use-label', ret).text('(' + wiki + ')');
   $('.use-link', ret).attr('href', url);
   $('.use-link', ret).text(title);
   return ret;
@@ -138,94 +138,124 @@ function prepend_playhistory(tune_id) {
 }
 
 $(function init(){
-    $.getJSON('http://localhost:5000/rand/5?callback=?', function(data, textStatus, jqXHR) {
-        get_file_props(data, function(tunes) {
-            append_playlist(tunes);
-        }, function() { play_tune(Playing); });
-    });
-    $('#playhistory').on('click', 'a', function() {
-      var tune_index = $('#playhistory a').length - $(this).index() - 1;
-      play_tune(tune_index);
-      return false;
-    });
+  $.getJSON('http://localhost:5000/rand/5?callback=?', function(data, textStatus, jqXHR) {
+      get_file_props(data, function(tunes) {
+          append_playlist(tunes);
+      }, function() { play_tune(Playing); });
+  });
+  $('#playhistory').on('click', 'a', function() {
+    var tune_index = $('#playhistory a').length - $(this).index() - 1;
+    play_tune(tune_index);
+    return false;
+  });
 
-    // radio events
-    $(RadioC).on({
-        'ended': function(e) {
-            RadioC.transition = next_tune_transition();
-        },
-        'timeupdate': function (){
-            //var elapsed = parseFloat(RadioC[0].duration - RadioC[0].currentTime, 10)
-            var pos = (RadioC.currentTime / RadioC.duration) * 100;
-            $('#progress-bar').attr('style', 'width: ' + pos + '%;');
-            $('#time-display').html(fancy_time(RadioC.currentTime) + ' / ' + fancy_time(RadioC.duration));
-        },
-        'pause': function() {
+  // radio events
+  $(RadioC).on({
+    'ended': function(e) {
+        RadioC.transition = next_tune_transition();
+    },
+    'timeupdate': function (){
+        //var elapsed = parseFloat(RadioC[0].duration - RadioC[0].currentTime, 10)
+        var pos = (RadioC.currentTime / RadioC.duration) * 100;
+        $('#progress-bar').attr('style', 'width: ' + pos + '%;');
+        $('#time-display').html(fancy_time(RadioC.currentTime) + ' / ' + fancy_time(RadioC.duration));
+    },
+    'pause': function() {
 
-        },
-        'play': function() {
-            $('#play-button').addClass('active').hide();
-            $('#pause-button').removeClass('active').show();
-            RadioC.transition_paused = false;
-        },
-        'loadstart': function() {
-            $('#progress-bar').attr('style', 'width: 0%');
-            $('.radio-loader').fadeIn();
-        },
-        'loadeddata': function() {
-            $('.radio-loader').fadeOut();
-            //visualization
-            if (context) {
-                setup_audio_nodes();
-            }
-        },
-        'error': function(e) {
-            console.log(e);
-            RadioC.transition = next_tune_transition();
-        },
-        'stalled': function() {
-            console.log('stalled!');
-            RadioC.transition = next_tune_transition();
-        }
-    });
-
-    // custom controls
-    $('#play-button').click(function() {
-        $('#pause-button').removeClass('active').show();
+    },
+    'play': function() {
         $('#play-button').addClass('active').hide();
-        if (RadioC.transition_paused) {
-            RadioC.transition = next_tune_transition();
-            RadioC.transition_paused = false;
-        } else {
-            $(RadioC)[0].play();
+        $('#pause-button').removeClass('active').show();
+        RadioC.transition_paused = false;
+    },
+    'loadstart': function() {
+        $('#progress-bar').attr('style', 'width: 0%');
+        $('.radio-loader').fadeIn();
+    },
+    'loadeddata': function() {
+        $('.radio-loader').fadeOut();
+        //visualization
+        if (context) {
+            setup_audio_nodes();
         }
-    });
-    $('#pause-button').click(function() {
-        $('#play-button').removeClass('active').show();
-        $('#pause-button').addClass('active').hide();
-        clearTimeout(RadioC.transition);
-        if (RadioC.transition) {
-            RadioC.transition_paused = true;
-        } else {
-            $(RadioC)[0].pause();
-        }
-    });
-    $('#next-button').click(function() {
-        check_next_tune();
-    });
-    $('#prev-button').click(function() {
-        play_tune(Playing - 1); // does it exist?
-    });
-    $('#load-button').click(function() {
-        fetch_more(append_playlist);
-    });
-    $('#progress-bar-container').click(function(e) {
-        if (RadioC.duration) {
-            RadioC.currentTime = (e.offsetX / this.offsetWidth) * RadioC.duration;
-        }
-    });
+    },
+    'error': function(e) {
+        console.log(e);
+        RadioC.transition = next_tune_transition();
+    },
+    'stalled': function() {
+        console.log('stalled!');
+        RadioC.transition = next_tune_transition();
+    }
+  });
 
-    // viz stuff
+  // custom controls
+  $('#play-button').click(function() {
+    $('#pause-button').removeClass('active').show();
+    $('#play-button').addClass('active').hide();
+    if (RadioC.transition_paused) {
+      RadioC.transition = next_tune_transition();
+      RadioC.transition_paused = false;
+    } else {
+      $(RadioC)[0].play();
+    }
+  });
+  $('#pause-button').click(function() {
+    $('#play-button').removeClass('active').show();
+    $('#pause-button').addClass('active').hide();
+    clearTimeout(RadioC.transition);
+    if (RadioC.transition) {
+      RadioC.transition_paused = true;
+    } else {
+      $(RadioC)[0].pause();
+    }
+  });
+  $('#next-button').click(function() {
+    check_next_tune();
+  });
+  $('#prev-button').click(function() {
+    play_tune(Playing - 1); // does it exist?
+  });
+  $('#load-button').click(function() {
+    fetch_more(append_playlist);
+  });
+  $('#progress-bar-container').click(function(e) {
+    if (RadioC.duration) {
+      RadioC.currentTime = (e.offsetX / this.offsetWidth) * RadioC.duration;
+    }
+  });
+  $('#min-dir').change(function() {
+    console.log($(this).val());
+  });
+  $('#max-dir').change(function() {
+    console.log($(this).val());
+  });
+  $('#spoken').change(function() {
+    console.log($(this).is(':checked'));
+  });
+  $('#unused').change(function() {
+    console.log($(this).is(':checked'));
+  });
+  $('#settings-area').hide();
+  $('#load-area').hide();
+  $('#settings').click(function() {
+    $('#settings-area').slideToggle();
+  });
+  $('#load').click(function() {
+    $('#load-area').slideToggle();
+  });
+  $('#load-submit').click(function() {
+    var load_url = $('#load-area input').val();
+    if (!load_url) {
+      $('#load-area input').parent().addClass('error');
+      $('#load-area input').parent().append('<div class="ui red pointing above ui label" id="load-error">Please include a URL to a file on Wikimedia Commons</div>')
+    } else {
+      $('#load-area input').parent().removeClass('error');
+      $('#load-error').remove();
+      console.log(load_url);
+    }
+  })
+  // viz stuff
   if (!context) {
     $('#songcanvas').hide();
   }
@@ -266,6 +296,7 @@ function get_file_props(filenames, cb, final_cb) {
     'action': 'query',
     'titles': filestr,
     'prop': 'videoinfo|globalusage|categories',
+    'guprop': 'namespace',
     'viprop': 'url|mediatype|metadata|user|timestamp',
     'vilimit': 500,
     'gulimit': 500,
@@ -335,7 +366,6 @@ function insert_imgs(urls, tried) {
   $('#cp-cover').html('<img src="' + thumb_url + '" class="ui rounded right floated image">');
   $('#cp-cover img').error(function() {
     console.log('error loading image');
-    console.log(tried);
     insert_imgs(urls, tried);
 
   });
@@ -380,6 +410,75 @@ function get_image_from_pg(title, wiki) {
   });
 }
 
+function get_summary(wikis) {
+  var top_wikis = ['en.wikipedia',
+                   'de.wikipedia',
+                   'nl.wikipedia',
+                   'fr.wikipedia',
+                   'it.wikipedia',
+                   'es.wikipedia',
+                   'ru.wikipedia',
+                   'sv.wikipedia',
+                   'pl.wikipedia',
+                   'ja.wikipedia',
+                   'pt.wikipedia',
+                   'zh.wikipedia',
+                   'vi.wikipedia',
+                   'uk.wikipedia',
+                   'ca.wikipedia'];
+  var wiki = false;
+  $('#cp-more').empty();
+  top_wiki_loop:
+  for (var i = 0; i < top_wikis.length; i++) {
+    var top_wiki = top_wikis[i];
+    usage_loop:
+    for (var j = 0; j < wikis.length; j++) {
+      // check if on a top wiki
+      wiki = wikis[j];
+      if (wiki['wiki'].indexOf(top_wiki) === 0 && wiki['ns'] == 0) {
+        // check if not outside main namespace
+        break top_wiki_loop;
+      } else {
+        wiki = false;
+      }
+    }
+  }
+  if (!wiki) {
+    // look again
+    for (var k = 0; k < wikis.length; k++) {
+       if (wikis[k]['ns'] === 0) {
+         wiki = wikis[k];
+       }
+    }
+  }
+  if (wiki) {
+    var api_url = 'http://' + wiki['wiki'] + '/w/api.php';
+    var params = {
+      'action': 'query',
+      'prop': 'extracts',
+      'titles': wiki['title'],
+      'exchars': '300',
+      'explaintext': 'true',
+      'exsectionformat': 'plain',
+      'format': 'json',
+      'callback': '?'
+    };
+    var api_query_url = prep_url(api_url, params);
+    $.getJSON(api_query_url, function(data, textStatus, jqXHR) {
+      if (data['query']) {
+        var ret_pages = data['query']['pages'];
+        for (var page_id in ret_pages) {
+          if (ret_pages.hasOwnProperty(page_id)) {
+            var cur_page = ret_pages[page_id];
+            // headings?
+            $('#cp-more').prepend('<h4 class="ui header">From <a href="http://' + wiki['wiki'] + '/wiki/' + wiki['title'] + '">' + wiki['title'] + '</a> on ' + wiki['wiki'] + ':</h4><div class="ui segment top extract"> <p class="extract">' + cur_page['extract'] + '</p></div>');
+          }
+        }
+      }
+    });
+  }
+}
+
 function play_tune(tune_id) {
   Playing = tune_id;
   prepend_playhistory(Playing);
@@ -399,8 +498,13 @@ function play_tune(tune_id) {
   $('#cp-cats .cat').remove();
   $('#cp-title').html(make_title_element(title));
   $('#cp-desc').html(make_user_title(Playlist[tune_id]['user']));
+  var wikis = [];
   if (Playlist[tune_id]['usage'].length > 0) {
+    get_summary(Playlist[tune_id]['usage']);
     $.map(Playlist[tune_id]['usage'], function(r) {
+      r['url'] = 'https://' + r['wiki'] + '/wiki/' + r['title'];
+      r['title'] = r['title'].replace(/_/g, ' ');
+      wikis.push([r['title'], r['wiki']]);
       $('#cp-more').append(make_use_element(r['url'], r['title'], r['wiki']));
       if ($('#cp-cover').children().length === 0) {
         // only get the first image
@@ -413,6 +517,16 @@ function play_tune(tune_id) {
 
   }
   var wikis = (Playlist[tune_id]['usage'].length == 1) ? 'wiki' : 'wikis';
+  // move this up to the templating function?
+  var MAX_USAGE = 3;
+  var usages = $('#cp-more span.use');
+  if (usages.length > MAX_USAGE) {
+    var remainder = usages.length - MAX_USAGE;
+    $('#cp-more span.use').remove();
+    $('#cp-more').append(usages.slice(0, MAX_USAGE));
+    $('#cp-more').append('<span class="use"><a href="https://commons.wikimedia.org/wiki/' + title + '#globalusage" target="_new">and ' + remainder + ' more</a>...</span>')
+  }
+  $('#cp-more .use:not(:last)').after(', ');
   if (Playlist[tune_id]['categories']) {
       $.map(Playlist[tune_id]['categories'], function(r) {
           $('#cp-cats-c').append(make_category_element(r['title']));

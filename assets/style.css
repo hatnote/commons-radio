@@ -1,7 +1,8 @@
 body {
-	font-family: sans-serif;
+	font-family: "Helvetica Neue","Helvetica","Nimbus Sans L","Arial","Liberation Sans",sans-serif;
 	margin: 1em 4em;
-	<!-- background: #CfCfCf; -->
+	line-height: 1.2em;
+	font-size: 100%;
 }
 h1 {
 	margin: 1em 0;
@@ -11,8 +12,25 @@ h2 a {
 	text-decoration: none;
 	color: #000;
 }
+h2 a:hover {
+	text-decoration: none;
+}
+
 audio {
 	display: none;
+}
+
+a {
+	color: #002bb8;
+	text-decoration: none;
+}
+
+a:hover {
+	text-decoration: underline;
+}
+
+a:visited {
+	color: #002bb8;
 }
 
 .bar, .progress {
@@ -27,6 +45,9 @@ audio {
 	color: #fff;
 	text-decoration: none;
 }
+.ui.label {
+	text-transform: none;
+}
 
 .ui.label.cat {
 	margin-top: 5px;
@@ -34,6 +55,10 @@ audio {
 
 .ui.basic.segment {
 	padding: 1em 0;
+}
+
+.ui.segment>.attached.label:first-child+* {
+	margin-top: 0;
 }
 
 .label {
@@ -45,11 +70,17 @@ audio {
 	text-decoration: none;
 	font-weight: normal;
 }
+
 .header a:hover {
 	border-bottom: 1px solid #6ECFF5;
 }
+
 .ui.floated.image, .ui.floated.images {
 	margin: 0;
+}
+
+ui.small.labels .label, .ui.small.label {
+	font-size: .7rem;
 }
 
 #cp-title {
@@ -96,6 +127,23 @@ audio {
 #cp-cats-c {
 	margin-left: 1.2em;
 }
+
+#load-submit {
+	margin-top: 1em;
+}
+
+.ui.selection.dropdown {
+	vertical-align: middle;
+}
+
+.use-label {
+	color: rgba(0, 0, 0, 0.8);
+}
+
+.use a {
+	color: rgba(0, 43, 184, 0.8);
+}
+
 .no-animate {
 	-webkit-transition: none !important;
  	-moz-transition: none !important;
