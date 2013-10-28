@@ -498,6 +498,7 @@ function play_tune(tune_id) {
   $('#cp-cats .cat').remove();
   $('#cp-title').html(make_title_element(title));
   $('#cp-desc').html(make_user_title(Playlist[tune_id]['user']));
+  // TODO: add date the file was uploaded
   var wikis = [];
   if (Playlist[tune_id]['usage'].length > 0) {
     get_summary(Playlist[tune_id]['usage']);
