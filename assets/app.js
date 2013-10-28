@@ -235,7 +235,7 @@ $(function init(){
     }
   });
 
-  RadioC.volume = 0;
+  //RadioC.volume = 0; // for polite debugging
 
   // custom controls
   $('#play-button').click(function() {
